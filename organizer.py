@@ -11,12 +11,13 @@ import codecs
 import csv
 import itertools as it
 
-
 BUDGET_EXCEL_FILE = 'test.xlsx'
 KEYWORDS_FILE = 'D:\\Python\\Organizator Wydatków\\keywords.csv'
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 os.chdir('C:\\Users\\jaqbk\\OneDrive\\Dokumenty\\Finanse')
+
+
 # logging.disable(logging.CRITICAL)
 
 
@@ -100,7 +101,7 @@ def loopthroughcategories(title):
     category = -1
     category_list = []
     keywords = codecs.open(KEYWORDS_FILE, 'r', 'utf-8')
-    keywords_data = csv.reader(keywords,)
+    keywords_data = csv.reader(keywords, )
     keywords_list = list(keywords_data)
     for row in keywords_list:
         for i in range(1, len(row)):
@@ -126,7 +127,7 @@ def main():
     workbook, sheets = readexcelfile(BUDGET_EXCEL_FILE)
     bank = checkbank(filename)
     # makekeywordsfile(BUDGET_EXCEL_FILE) # !!! uncommenting this will overwrite existing keywords file !!!
-    trialbalance = BankTrialBalance(filename, bank)
+    trialbalance = BankTrialBalance(filename, bank, workbook, sheets)
     trialbalance.datafromcsv()
     logging.debug(f'Sheets in workbook: {sheets}')
     trialbalance.categorize()
@@ -135,9 +136,11 @@ def main():
 class BankTrialBalance:
     data_list: List[Any]
 
-    def __init__(self, filename, bank):
+    def __init__(self, filename, bank, workbook, sheets):
         self.filename = filename
         self.bank = bank
+        self.workbook = workbook
+        self.sheets = sheets
         self.data_list = []
         pass
 
@@ -156,11 +159,59 @@ class BankTrialBalance:
         else:
             print('Please specify banking account')
 
+    def sheetandcellfromdate(self, month, day):
+        sheet: str
+        columnlist = [0, 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA',
+                  'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH', 'AI', 'AJ', 'AK', 'AL', 'AM']
+        if month == 1:
+            sheet = 'Styczeń'
+        elif month == 2:
+            sheet = 'Luty'
+        elif month == 3:
+            sheet = 'Marzec'
+        elif month == 4:
+            sheet = 'Kwiecień'
+        elif month == 5:
+            sheet = 'Maj'
+        elif month == 6:
+            sheet = 'Czerwiec'
+        elif month == 7:
+            sheet = 'Lipiec'
+        elif month == 8:
+            sheet = 'Sierpień'
+        elif month == 9:
+            sheet = 'Wrzesień'
+        elif month == 10:
+            sheet = 'Październik'
+        elif month == 11:
+            sheet = 'Listopad'
+        elif month == 12:
+            sheet = 'Grudzień'
+        else:
+            sheet = ''
+
+        return sheet, columnlist[day]
+
+    def checkcell(self, workbook, sheet, cell):
+        if cell[1] == '-' or cell[2] == '-':
+            return None
+        else:
+            pass
+        pass
+
+    def excelupdate(self, workbook, sheet, cell, value):
+        self.checkcell(workbook, sheet, cell)
+        pass
+
     def categorize(self):
         if self.bank == 'mbank':
             start = False
             valueindex = 0
             titleindex = 0
+            dateindex = 0
+            month = 0
+            day = 0
+            cell = ''
             for index, row in enumerate(self.data_list):
                 if not start:
                     if len(self.data_list[index]) > 0:
@@ -169,8 +220,11 @@ class BankTrialBalance:
                             for i in range(len(self.data_list[index])):
                                 if self.data_list[index][i] == '#Kwota':
                                     valueindex = i
-                                elif self.data_list[index][i] == '#Tytuł' or self.data_list[index][i] == '#Opis operacji':
+                                elif self.data_list[index][i] == '#Tytuł' or self.data_list[index][
+                                    i] == '#Opis operacji':
                                     titleindex = i
+                                elif self.data_list[index][i] == '#Data operacji':
+                                    dateindex = i
                                 else:
                                     continue
                         else:
@@ -180,12 +234,22 @@ class BankTrialBalance:
                 else:
                     if len(self.data_list[index]) > 0:
                         title = self.data_list[index][titleindex].lower()
-                        category = loopthroughcategories(title)
+                        date = self.data_list[index][dateindex]
+                        if self.data_list[index][titleindex-1].lower() == 'przelew na twoje cele':
+                            category = 212
+                        else:
+                            category = loopthroughcategories(title)
                         self.data_list[index][valueindex] = self.data_list[index][valueindex].replace("PLN", "")
                         self.data_list[index][valueindex] = self.data_list[index][valueindex].replace(",", ".")
                         self.data_list[index][valueindex] = self.data_list[index][valueindex].replace(" ", "")
                         value = abs(float(self.data_list[index][valueindex]))
-                        logging.debug(f'Category: {category}, Value: {value} Title {title}')
+                        month = int(date.split('-')[1])
+                        day = int(date.split('-')[2])
+                        sheet, column = self.sheetandcellfromdate(month, day)
+                        cell = column + str(category)
+                        self.checkcell(self.workbook, sheet, cell)
+                        logging.debug(f'Category: {category}, Cell: {cell}, Value: {value} Title {title} Date {date} '
+                                      f'Month {month}')
                     else:
                         start = False
                         continue
@@ -198,15 +262,15 @@ class BankTrialBalance:
                         self.data_list[index][5] = self.data_list[index][5].replace("\"", "")
                         self.data_list[index][5] = self.data_list[index][5].replace(",", ".")
                         value = abs(float(self.data_list[index][5]))
-                        logging.debug(f'Category: {category}, Value: {value} Title {title}')
                     else:
                         self.data_list[index][6] = self.data_list[index][6].replace("\"", "")
                         self.data_list[index][6] = self.data_list[index][6].replace(",", ".")
                         value = abs(float(self.data_list[index][6]))
-                        logging.debug(f'Category: {category}, Value: {value} Title {title}')
+                    date = self.data_list[index][0]
+                    logging.debug(f'Category: {category}, Value: {value} Title {title} Date {date}')
                 else:
                     continue
-        elif self.bank == 'millennium':  # todo this module for millenium
+        elif self.bank == 'millennium':
             for index, row in enumerate(self.data_list):
                 for i in range(len(self.data_list[index])):
                     self.data_list[index][i] = self.data_list[index][i].replace("\"", "")
@@ -221,11 +285,11 @@ class BankTrialBalance:
                     if len(self.data_list[index][7]) > 0:
                         self.data_list[index][7] = self.data_list[index][7].replace(",", ".")
                         value = abs(float(self.data_list[index][7]))
-                        logging.debug(f'Category: {category}, Value: {value} Title {title}')
                     else:
                         self.data_list[index][8] = self.data_list[index][8].replace(",", ".")
                         value = abs(float(self.data_list[index][8]))
-                        logging.debug(f'Category: {category}, Value: {value}, Description {desc}, Title {title}')
+                    date = self.data_list[index][1]
+                    logging.debug(f'Category: {category}, Value: {value}, Description {desc}, Title {title} Date {date}')
                 else:
                     continue
 
