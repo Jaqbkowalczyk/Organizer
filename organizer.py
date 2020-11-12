@@ -13,6 +13,7 @@ import itertools as it
 
 BUDGET_EXCEL_FILE = 'test.xlsx'
 KEYWORDS_FILE = 'D:\\Python\\Organizator Wydatków\\keywords.csv'
+CATEGORIES_FILE = 'D:\\Python\\Organizator Wydatków\\categories.csv'
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 os.chdir('C:\\Users\\jaqbk\\OneDrive\\Dokumenty\\Finanse')
@@ -31,6 +32,26 @@ def readexcelfile(filename):
     workbook = openpyxl.load_workbook(filename)
     sheets = workbook.sheetnames
     return workbook, sheets
+
+def makecategoriesfile(filename):
+    workbook, sheets = readexcelfile(filename)
+    categories = workbook.get_sheet_by_name(sheets[1])
+    os.chdir('D:\\Python\\Organizator Wydatków')
+    file = open(CATEGORIES_FILE, 'w')
+    for i in it.chain(range(15, 30), range(36, 46), range(48, 58), range(60, 70), range(72, 82), range(84, 94),
+                      range(96, 106), range(108, 118), range(120, 130), range(132, 142), range(144, 154),
+                      range(156, 166), range(168, 178), range(180, 190), range(192, 202), range(204, 214)):
+        position = 'B' + str(i)
+        cell = categories[position]
+        if cell.value not in ['.', '']:
+            if i < 30:
+                file.write(str(i + 43) + ',' + cell.value + '\n')
+                # logging.debug(f'Dodajemy 43 do {position} wartość komórki: {cell.value}, nowa komórka: B{str(i + 43)}')
+            else:
+                file.write(str(i + 44) + ',' + cell.value + '\n')
+                # logging.debug(f'Dodajemy 44 do {position} wartość komórki: {cell.value}, nowa komórka: B{str(i + 44)}')
+    file.close()
+    os.chdir('C:\\Users\\jaqbk\\OneDrive\\Dokumenty\\Finanse')
 
 
 def makekeywordsfile(filename):
@@ -127,6 +148,7 @@ def main():
     workbook, sheets = readexcelfile(BUDGET_EXCEL_FILE)
     bank = checkbank(filename)
     # makekeywordsfile(BUDGET_EXCEL_FILE) # !!! uncommenting this will overwrite existing keywords file !!!
+    # makecategoriesfile(BUDGET_EXCEL_FILE)
     trialbalance = BankTrialBalance(filename, bank, workbook, sheets)
     trialbalance.datafromcsv()
     logging.debug(f'Sheets in workbook: {sheets}')
@@ -192,16 +214,34 @@ class BankTrialBalance:
 
         return sheet, columnlist[day]
 
-    def checkcell(self, workbook, sheet, cell):
+    def checkandupdatecell(self, sheet, cell, value):
         if cell[1] == '-' or cell[2] == '-':
             return None
         else:
-            pass
+            sheet = self.workbook.get_sheet_by_name(sheet)
+            cellobj = sheet[cell]
+            cellvalue = cellobj.value
+            logging.debug(f'Cell: {cell} value: {cellvalue}')
+            if cellvalue is not None:
+                if str(cellvalue)[0] == '=':
+                    values = cellvalue.split('+')
+                    if str(value) in values:
+                        pass
+                    else:
+                        cellvalue += '+' + str(value)
+                else:
+                    if value == cellvalue:
+                        pass
+                    else:
+                        cellvalue = '=' + str(cellvalue) + '+' + str(value)
+            else:
+                cellvalue = value
+            sheet[cell] = cellvalue
         pass
 
-    def excelupdate(self, workbook, sheet, cell, value):
-        self.checkcell(workbook, sheet, cell)
-        pass
+    def  askuser(self):
+
+        return None
 
     def categorize(self):
         if self.bank == 'mbank':
@@ -247,7 +287,7 @@ class BankTrialBalance:
                         day = int(date.split('-')[2])
                         sheet, column = self.sheetandcellfromdate(month, day)
                         cell = column + str(category)
-                        self.checkcell(self.workbook, sheet, cell)
+                        self.checkandupdatecell(sheet, cell, value)
                         logging.debug(f'Category: {category}, Cell: {cell}, Value: {value} Title {title} Date {date} '
                                       f'Month {month}')
                     else:
@@ -257,6 +297,7 @@ class BankTrialBalance:
             for index, row in enumerate(self.data_list):
                 if len(self.data_list[index]) > 0 and index > 0:
                     title = self.data_list[index][2].lower()
+                    date = self.data_list[index][1]
                     category = loopthroughcategories(title)
                     if len(self.data_list[index][5]) > 0:
                         self.data_list[index][5] = self.data_list[index][5].replace("\"", "")
@@ -266,8 +307,13 @@ class BankTrialBalance:
                         self.data_list[index][6] = self.data_list[index][6].replace("\"", "")
                         self.data_list[index][6] = self.data_list[index][6].replace(",", ".")
                         value = abs(float(self.data_list[index][6]))
-                    date = self.data_list[index][0]
-                    logging.debug(f'Category: {category}, Value: {value} Title {title} Date {date}')
+                    month = int(date.split('-')[1])
+                    day = int(date.split('-')[0])
+                    sheet, column = self.sheetandcellfromdate(month, day)
+                    cell = column + str(category)
+                    self.checkandupdatecell(sheet, cell, value)
+                    logging.debug(f'Category: {category}, Cell: {cell}, Value: {value} Title {title} Date {date} '
+                                  f'Month {month}')
                 else:
                     continue
         elif self.bank == 'millennium':
@@ -289,9 +335,16 @@ class BankTrialBalance:
                         self.data_list[index][8] = self.data_list[index][8].replace(",", ".")
                         value = abs(float(self.data_list[index][8]))
                     date = self.data_list[index][1]
-                    logging.debug(f'Category: {category}, Value: {value}, Description {desc}, Title {title} Date {date}')
+                    month = int(date.split('-')[1])
+                    day = int(date.split('-')[2])
+                    sheet, column = self.sheetandcellfromdate(month, day)
+                    cell = column + str(category)
+                    self.checkandupdatecell(sheet, cell, value)
+                    logging.debug(f'Category: {category}, Cell: {cell}, Value: {value}, Description {desc}, '
+                                  f'Title {title}, Date {date}, Month {month}')
                 else:
                     continue
+        self.workbook.save('example.xlsx')
 
 
 if __name__ == '__main__':
