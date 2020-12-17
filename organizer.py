@@ -2,7 +2,7 @@
 from __future__ import unicode_literals
 import os
 import logging
-from tkinter import Tk  # from tkinter import Tk for Python 3.x
+from tkinter import *  # from tkinter import Tk for Python 3.x
 from tkinter.filedialog import askopenfilename
 from typing import List, Any
 
@@ -102,6 +102,19 @@ def readcsvfile(filename, **kwargs):
                 data_list = list(csv_data)
         else:
             pass
+    elif 'encoding' in kwargs:
+        if kwargs['encoding'] == 'ansi':
+            with codecs.open(filename, 'r', 'ansi') as data:
+                csv_data = csv.reader(data)
+                data_list = list(csv_data)
+        if kwargs['encoding'] == 'utf-8':
+            with codecs.open(filename, 'r', 'utf-8') as data:
+                csv_data = csv.reader(data)
+                data_list = list(csv_data)
+        if kwargs['encoding'] == 'utf-8-sig':
+            with codecs.open(filename, 'r', 'utf-8-sig') as data:
+                csv_data = csv.reader(data)
+                data_list = list(csv_data)
     else:
         with codecs.open(filename, 'r', 'utf-8') as data:
             csv_data = csv.reader(data)
@@ -144,15 +157,65 @@ def loopthroughcategories(title):
 
 
 def main():
-    filename = openfile()
-    workbook, sheets = readexcelfile(BUDGET_EXCEL_FILE)
-    bank = checkbank(filename)
-    # makekeywordsfile(BUDGET_EXCEL_FILE) # !!! uncommenting this will overwrite existing keywords file !!!
-    # makecategoriesfile(BUDGET_EXCEL_FILE)
-    trialbalance = BankTrialBalance(filename, bank, workbook, sheets)
-    trialbalance.datafromcsv()
-    logging.debug(f'Sheets in workbook: {sheets}')
-    trialbalance.categorize()
+
+    return options
+
+
+def checkandupdatecell(workbook, sheet, cell, value):
+    if cell[1] == '-' or cell[2] == '-':
+        logging.debug('No cell - cell not updated')
+        return None
+    else:
+        sheet = workbook.get_sheet_by_name(sheet)
+        cellobj = sheet[cell]
+        cellvalue = cellobj.value
+        logging.debug(f'Cell: {cell} value: {cellvalue}')
+        if cellvalue is not None:
+            if str(cellvalue)[0] == '=':
+                values = cellvalue.split('+')
+                if str(value) in values:
+                    pass
+                else:
+                    cellvalue += '+' + str(value)
+            else:
+                if value == cellvalue:
+                    pass
+                else:
+                    cellvalue = '=' + str(cellvalue) + '+' + str(value)
+        else:
+            cellvalue = value
+        sheet[cell] = cellvalue
+    pass
+
+
+def click(): # todo make so the var value updates excel by category which is provided by user
+    i = 0
+    for log in options:
+        (click_date, click_title, click_sheet, click_cell, click_value) = log
+
+        print(vars[i].get())
+        for row in data_list:
+            if len(row) == 1:
+                if vars[i].get() == row[0]:
+                    popup_window()
+                    logging.debug("Brak wyboru")
+            elif len(row) > 1:
+                if vars[i].get() == row[1]:
+                    if len(click_cell) == 4:
+                        new_cell = click_cell[0] + click_cell[1] + row[0]
+                    else:
+                        new_cell = click_cell[0] + row[0]
+                    checkandupdatecell(workbook, click_sheet, new_cell, click_value)
+                    logging.debug(f'Tytuł: {click_title}, Numer Komórki: {new_cell}')
+        i += 1
+        
+def popup_window(): # todo dopisać funkcję która powraca do wyboru listy i funkcję która zamyka roota
+    window = Toplevel()
+    label = Label(window, text="Hello World!")
+    label.pack(fill='x', padx=50, pady=5)
+
+    button_close = Button(window, text="Close", command=window.destroy)
+    button_close.pack(fill='x')
 
 
 class BankTrialBalance:
@@ -214,36 +277,47 @@ class BankTrialBalance:
 
         return sheet, columnlist[day]
 
-    def checkandupdatecell(self, sheet, cell, value):
-        if cell[1] == '-' or cell[2] == '-':
-            return None
-        else:
-            sheet = self.workbook.get_sheet_by_name(sheet)
-            cellobj = sheet[cell]
-            cellvalue = cellobj.value
-            logging.debug(f'Cell: {cell} value: {cellvalue}')
-            if cellvalue is not None:
-                if str(cellvalue)[0] == '=':
-                    values = cellvalue.split('+')
-                    if str(value) in values:
-                        pass
-                    else:
-                        cellvalue += '+' + str(value)
-                else:
-                    if value == cellvalue:
-                        pass
-                    else:
-                        cellvalue = '=' + str(cellvalue) + '+' + str(value)
-            else:
-                cellvalue = value
-            sheet[cell] = cellvalue
-        pass
-
-    def  askuser(self):
-
+    def askuser(self, options):
+        title_local: str
+        date_local: str
+        value_local: float
+        dropdownlist = []
+        labels = []
+        dropdowns = []
+        i = 0
+        os.chdir('D:\\Python\\Organizator Wydatków')
+        root = Tk()
+        root.iconbitmap('ico\\kasa.ico')
+        root.title('Organizer Wydatków')
+        #root.geometry("800x400")
+        #root.resizable(height = None, width = None)
+        lab = Label(root, text = 'Manualny wybór kategorii')
+        lab.grid(row=0, column=0)
+        data = readcsvfile(CATEGORIES_FILE, encoding='ansi')
+        data_list = list(data)
+        for row in data_list:
+            if len(row) > 1:
+                dropdownlist.append(row[1])
+            elif len(row) == 1:
+                dropdownlist.append(row[0])
+        clicked = StringVar()
+        clicked.set(str(dropdownlist[0]))
+        print(clicked.get())
+        for logs in options:
+            i += 1
+            (date_local, title_local, value_local) = logs
+            labels.append(Label(root, text=f'Data: {date_local}, Tytuł: {title_local}, Wartość: {value_local}'))
+            labels[i-1].grid(sticky=W, row=i, column=0)
+            dropdowns.append(OptionMenu(root, clicked, *dropdownlist)) # todo coś nie działa z optrionsmenu
+            dropdowns[i-1].config(width=15)
+            dropdowns[i-1].grid(row=i, column=1)
+            logging.debug(f'Data: {date_local}, Tytuł: {title_local}, Wartość: {value_local}')
+        logging.debug(data_list)
+        root.mainloop()
         return None
 
     def categorize(self):
+        options = []
         if self.bank == 'mbank':
             start = False
             valueindex = 0
@@ -287,7 +361,9 @@ class BankTrialBalance:
                         day = int(date.split('-')[2])
                         sheet, column = self.sheetandcellfromdate(month, day)
                         cell = column + str(category)
-                        self.checkandupdatecell(sheet, cell, value)
+                        checkandupdatecell(self.workbook, sheet, cell, value)
+                        if category == -1:
+                            options.append((date, title, sheet, cell, value))
                         logging.debug(f'Category: {category}, Cell: {cell}, Value: {value} Title {title} Date {date} '
                                       f'Month {month}')
                     else:
@@ -311,7 +387,9 @@ class BankTrialBalance:
                     day = int(date.split('-')[0])
                     sheet, column = self.sheetandcellfromdate(month, day)
                     cell = column + str(category)
-                    self.checkandupdatecell(sheet, cell, value)
+                    checkandupdatecell(self.workbook, sheet, cell, value)
+                    if category == -1:
+                        options.append((date, title, sheet, cell, value))
                     logging.debug(f'Category: {category}, Cell: {cell}, Value: {value} Title {title} Date {date} '
                                   f'Month {month}')
                 else:
@@ -328,6 +406,8 @@ class BankTrialBalance:
                     if category != category2:
                         if category == -1:
                             category = category2
+                    if title == '' or title == ',':
+                        title = desc
                     if len(self.data_list[index][7]) > 0:
                         self.data_list[index][7] = self.data_list[index][7].replace(",", ".")
                         value = abs(float(self.data_list[index][7]))
@@ -339,13 +419,77 @@ class BankTrialBalance:
                     day = int(date.split('-')[2])
                     sheet, column = self.sheetandcellfromdate(month, day)
                     cell = column + str(category)
-                    self.checkandupdatecell(sheet, cell, value)
+                    checkandupdatecell(self.workbook, sheet, cell, value)
+                    if category == -1:
+                        options.append((date, title, sheet, cell, value))
                     logging.debug(f'Category: {category}, Cell: {cell}, Value: {value}, Description {desc}, '
                                   f'Title {title}, Date {date}, Month {month}')
                 else:
                     continue
+        """if len(options) > 0:
+            self.askuser(options)"""
         self.workbook.save('example.xlsx')
-
+        return options
+class FullScreenApp(object):
+    def __init__(self, master, **kwargs):
+        self.master=master
+        pad = 3
+        self._geom = '200x200+0+0'
+        master.geometry("{0}x{1}+0+0".format(
+            master.winfo_screenwidth()-pad, master.winfo_screenheight()-pad))
+        master.bind('<Escape>',self.toggle_geom)
+    def toggle_geom(self,event):
+        geom = self.master.winfo_geometry()
+        print(geom, self._geom)
+        self.master.geometry(self._geom)
+        self._geom = geom
 
 if __name__ == '__main__':
-    main()
+    dropdownlist = []
+    labels = []
+    dropdowns = []
+    vars =[]
+    i = 0
+    os.chdir('D:\\Python\\Organizator Wydatków')
+    root = Tk()
+    root.iconbitmap('ico\\kasa.ico')
+    os.chdir('C:\\Users\\jaqbk\\OneDrive\\Dokumenty\\Finanse')
+    app = FullScreenApp(root)
+    root.title('Organizer Wydatków')
+    #root.geometry("1000x800")
+    root.resizable(height=None, width=None)
+    lab = Label(root, text='Manualny wybór kategorii')
+    lab.grid(row=0, column=0)
+    data = readcsvfile(CATEGORIES_FILE, encoding='ansi')
+    data_list = list(data)
+    for row in data_list:
+        if len(row) > 1:
+            dropdownlist.append(row[1])
+        elif len(row) == 1:
+            dropdownlist.append(row[0])
+    filename = openfile()
+    workbook, sheets = readexcelfile(BUDGET_EXCEL_FILE)
+    bank = checkbank(filename)
+    # makekeywordsfile(BUDGET_EXCEL_FILE) # !!! uncommenting this will overwrite existing keywords file !!!
+    # makecategoriesfile(BUDGET_EXCEL_FILE)
+    trialbalance = BankTrialBalance(filename, bank, workbook, sheets)
+    trialbalance.datafromcsv()
+    logging.debug(f'Sheets in workbook: {sheets}')
+    options = trialbalance.categorize()
+    for log in options:
+        i += 1
+        variable = StringVar()
+        variable.set(dropdownlist[0])
+        vars.append(variable)
+        (date, title, sheet, cell, value) = log
+        labels.append(Label(root, text=f'Data: {date}, Tytuł: {title}, Wartość: {value}'))
+        labels[i - 1].grid(row=i, column=0)
+        dropdowns.append(OptionMenu(root, variable, *dropdownlist))
+        dropdowns[i - 1].config(width=35)
+        dropdowns[i - 1].grid(row=i, column=1)
+        logging.debug(f'Data: {date}, Tytuł: {title}, Miesiąc: {sheet}, Komórka: {cell} Wartość: {value}')
+    logging.debug(data_list)
+    button = Button(root, text="OK", command=click)
+    button.grid(sticky=E, row=i+2, column=2)
+    button.config(width=15)
+    root.mainloop()
