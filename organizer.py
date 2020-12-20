@@ -5,7 +5,7 @@ import logging
 from tkinter import *  # from tkinter import Tk for Python 3.x
 from tkinter.filedialog import askopenfilename
 from typing import List, Any
-
+import datetime
 import openpyxl
 import codecs
 import csv
@@ -14,7 +14,7 @@ import itertools as it
 BUDGET_EXCEL_FILE = 'test.xlsx'
 KEYWORDS_FILE = 'D:\\Python\\Organizator Wydatków\\keywords.csv'
 CATEGORIES_FILE = 'D:\\Python\\Organizator Wydatków\\categories.csv'
-
+RAPORT_FILE = 'Raport_'
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 os.chdir('C:\\Users\\jaqbk\\OneDrive\\Dokumenty\\Finanse')
 
@@ -185,19 +185,20 @@ def checkandupdatecell(workbook, sheet, cell, value):
         else:
             cellvalue = value
         sheet[cell] = cellvalue
+    logging.debug(f'Cell: {cell} New value: {cellvalue}')
     pass
 
 
-def click(): # todo make so the var value updates excel by category which is provided by user
+def click_ok():
     i = 0
+    chooseall = True
     for log in options:
         (click_date, click_title, click_sheet, click_cell, click_value) = log
-
         print(vars[i].get())
         for row in data_list:
             if len(row) == 1:
                 if vars[i].get() == row[0]:
-                    popup_window()
+                    chooseall = False
                     logging.debug("Brak wyboru")
             elif len(row) > 1:
                 if vars[i].get() == row[1]:
@@ -205,17 +206,60 @@ def click(): # todo make so the var value updates excel by category which is pro
                         new_cell = click_cell[0] + click_cell[1] + row[0]
                     else:
                         new_cell = click_cell[0] + row[0]
-                    checkandupdatecell(workbook, click_sheet, new_cell, click_value)
                     logging.debug(f'Tytuł: {click_title}, Numer Komórki: {new_cell}')
+                    checkandupdatecell(workbook, click_sheet, new_cell, click_value)
+                    raport_log.append((click_date, click_title, click_sheet, new_cell, click_value))
         i += 1
-        
-def popup_window(): # todo dopisać funkcję która powraca do wyboru listy i funkcję która zamyka roota
-    window = Toplevel()
-    label = Label(window, text="Hello World!")
-    label.pack(fill='x', padx=50, pady=5)
+    if not chooseall:
+        popup_window()
+    else:
+        shutdown(root)
 
-    button_close = Button(window, text="Close", command=window.destroy)
+
+def click_exit():
+    popup_window(exit=True)
+
+
+def shutdown(event):
+    event.destroy()
+    raport()
+    sys.exit()
+
+
+def popup_window(exit=False):
+    window = Toplevel()
+    if exit:
+        label_text = 'Not everything has been saved in Excel, do you want to continue?'
+    else:
+        label_text = "Not everything is checked, do you want to continue?" \
+                     "\n(You have to fill values manually in Excel file.)"
+    label = Label(window, text=label_text)
+    label.pack(fill='x', padx=50, pady=5)
+    button_close = Button(window, text="Yes, I'll do it myself.", command=lambda: shutdown(window))
     button_close.pack(fill='x')
+    button_back = Button(window, text="No, go back.", command=window.destroy)
+    button_back.pack(fill='x')
+
+
+def raport():
+    os.chdir('D:\\Python\\Organizator Wydatków\\Raporty')
+    today = datetime.date.today()
+    date_part = today.strftime("%d_%m_%Y")
+    text = '\t\tRaport z dnia ' + date_part +' dla banku: ' + bank + '\n' + '-'*60 + '\n'
+    raport_filename = RAPORT_FILE + date_part + '.csv'
+    file = open(raport_filename, 'w')
+    for log in raport_log:
+        (date, title, sheet, cell, value) = log
+        if f'Transakcja zapisana w raporcie: Data: {date}, Tytuł: {title}, ' \
+           f'Arkusz: {sheet}, Komórka: {cell}, Wartość: {value}' in text:
+            pass
+        else:
+            text += f'Transakcja zapisana w raporcie: Data: {date}, Tytuł: {title}, ' \
+                         f'Arkusz: {sheet}, Komórka: {cell}, Wartość: {value}' + '\n'
+        logging.critical(f'Transakcja zapisana w raporcie: Data: {date}, Tytuł: {title}, '
+                         f'Arkusz: {sheet}, Komórka: {cell}, Wartość: {value}')
+    file.write(text)
+    os.chdir('C:\\Users\\jaqbk\\OneDrive\\Dokumenty\\Finanse')
 
 
 class BankTrialBalance:
@@ -308,7 +352,7 @@ class BankTrialBalance:
             (date_local, title_local, value_local) = logs
             labels.append(Label(root, text=f'Data: {date_local}, Tytuł: {title_local}, Wartość: {value_local}'))
             labels[i-1].grid(sticky=W, row=i, column=0)
-            dropdowns.append(OptionMenu(root, clicked, *dropdownlist)) # todo coś nie działa z optrionsmenu
+            dropdowns.append(OptionMenu(root, clicked, *dropdownlist))
             dropdowns[i-1].config(width=15)
             dropdowns[i-1].grid(row=i, column=1)
             logging.debug(f'Data: {date_local}, Tytuł: {title_local}, Wartość: {value_local}')
@@ -363,7 +407,10 @@ class BankTrialBalance:
                         cell = column + str(category)
                         checkandupdatecell(self.workbook, sheet, cell, value)
                         if category == -1:
+                            value = abs(float(self.data_list[index][valueindex]))
                             options.append((date, title, sheet, cell, value))
+                        else:
+                            raport_log.append((date, title, sheet, cell, value))
                         logging.debug(f'Category: {category}, Cell: {cell}, Value: {value} Title {title} Date {date} '
                                       f'Month {month}')
                     else:
@@ -390,6 +437,8 @@ class BankTrialBalance:
                     checkandupdatecell(self.workbook, sheet, cell, value)
                     if category == -1:
                         options.append((date, title, sheet, cell, value))
+                    else:
+                        raport_log.append((date, title, sheet, cell, value))
                     logging.debug(f'Category: {category}, Cell: {cell}, Value: {value} Title {title} Date {date} '
                                   f'Month {month}')
                 else:
@@ -422,14 +471,16 @@ class BankTrialBalance:
                     checkandupdatecell(self.workbook, sheet, cell, value)
                     if category == -1:
                         options.append((date, title, sheet, cell, value))
+                    else:
+                        raport_log.append((date, title, sheet, cell, value))
                     logging.debug(f'Category: {category}, Cell: {cell}, Value: {value}, Description {desc}, '
                                   f'Title {title}, Date {date}, Month {month}')
                 else:
                     continue
-        """if len(options) > 0:
-            self.askuser(options)"""
         self.workbook.save('example.xlsx')
         return options
+
+
 class FullScreenApp(object):
     def __init__(self, master, **kwargs):
         self.master=master
@@ -449,6 +500,7 @@ if __name__ == '__main__':
     labels = []
     dropdowns = []
     vars =[]
+    raport_log = []
     i = 0
     os.chdir('D:\\Python\\Organizator Wydatków')
     root = Tk()
@@ -456,7 +508,6 @@ if __name__ == '__main__':
     os.chdir('C:\\Users\\jaqbk\\OneDrive\\Dokumenty\\Finanse')
     app = FullScreenApp(root)
     root.title('Organizer Wydatków')
-    #root.geometry("1000x800")
     root.resizable(height=None, width=None)
     lab = Label(root, text='Manualny wybór kategorii')
     lab.grid(row=0, column=0)
@@ -489,7 +540,10 @@ if __name__ == '__main__':
         dropdowns[i - 1].grid(row=i, column=1)
         logging.debug(f'Data: {date}, Tytuł: {title}, Miesiąc: {sheet}, Komórka: {cell} Wartość: {value}')
     logging.debug(data_list)
-    button = Button(root, text="OK", command=click)
-    button.grid(sticky=E, row=i+2, column=2)
-    button.config(width=15)
+    button_ok = Button(root, text="OK", command=click_ok)
+    button_ok.grid(sticky=E, row=i+2, column=2)
+    button_ok.config(width=15)
+    button_exit = Button(root, text="Exit", command=click_exit)
+    button_exit.grid(sticky=E, row=i + 2, column=3)
+    button_exit.config(width=15)
     root.mainloop()
