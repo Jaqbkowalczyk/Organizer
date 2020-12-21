@@ -33,6 +33,7 @@ def readexcelfile(filename):
     sheets = workbook.sheetnames
     return workbook, sheets
 
+
 def makecategoriesfile(filename):
     workbook, sheets = readexcelfile(filename)
     categories = workbook.get_sheet_by_name(sheets[1])
@@ -156,11 +157,6 @@ def loopthroughcategories(title):
     return category
 
 
-def main():
-
-    return options
-
-
 def checkandupdatecell(workbook, sheet, cell, value):
     if cell[1] == '-' or cell[2] == '-':
         logging.debug('No cell - cell not updated')
@@ -186,7 +182,6 @@ def checkandupdatecell(workbook, sheet, cell, value):
             cellvalue = value
         sheet[cell] = cellvalue
     logging.debug(f'Cell: {cell} New value: {cellvalue}')
-    pass
 
 
 def click_ok():
@@ -207,7 +202,7 @@ def click_ok():
                     else:
                         new_cell = click_cell[0] + row[0]
                     logging.debug(f'Tytuł: {click_title}, Numer Komórki: {new_cell}')
-                    checkandupdatecell(workbook, click_sheet, new_cell, click_value)
+                    checkandupdatecell(workbook, click_sheet, new_cell, abs(click_value))
                     raport_log.append((click_date, click_title, click_sheet, new_cell, click_value))
         i += 1
     if not chooseall:
@@ -242,23 +237,39 @@ def popup_window(exit=False):
 
 
 def raport():
+    category = ''
+    categories_dict = {}
     os.chdir('D:\\Python\\Organizator Wydatków\\Raporty')
     today = datetime.date.today()
     date_part = today.strftime("%d_%m_%Y")
     text = '\t\tRaport z dnia ' + date_part +' dla banku: ' + bank + '\n' + '-'*60 + '\n'
     raport_filename = RAPORT_FILE + date_part + '.csv'
+    for cat_row in data_list:
+        if len(cat_row) > 1:
+            categories_dict[cat_row[0]] = cat_row[1]
+        elif len(cat_row) == 1:
+            continue
+    logging.debug(categories_dict)
     file = open(raport_filename, 'w')
     for log in raport_log:
         (date, title, sheet, cell, value) = log
-        if f'Transakcja zapisana w raporcie: Data: {date}, Tytuł: {title}, ' \
-           f'Arkusz: {sheet}, Komórka: {cell}, Wartość: {value}' in text:
+        for index, letter in enumerate(cell):
+            if letter.isdigit():
+                cat_num = cell[index:]
+                category = categories_dict[cat_num]
+                break
+            else:
+                pass
+        if f'Data: {date}, Tytuł: {title}, ' \
+           f'Arkusz: {sheet}, Komórka: {cell}, Kategoria: {category}, Wartość: {value}' in text:
             pass
         else:
-            text += f'Transakcja zapisana w raporcie: Data: {date}, Tytuł: {title}, ' \
-                         f'Arkusz: {sheet}, Komórka: {cell}, Wartość: {value}' + '\n'
+            text += f'Data: {date}, Tytuł: {title}, ' \
+                         f'Arkusz: {sheet}, Komórka: {cell}, Kategoria: {category}, Wartość: {value}' + '\n'
         logging.critical(f'Transakcja zapisana w raporcie: Data: {date}, Tytuł: {title}, '
-                         f'Arkusz: {sheet}, Komórka: {cell}, Wartość: {value}')
+                         f'Arkusz: {sheet}, Komórka: {cell}, Kategoria: {category}, Wartość: {value}')
     file.write(text)
+    file.close()
     os.chdir('C:\\Users\\jaqbk\\OneDrive\\Dokumenty\\Finanse')
 
 
@@ -321,44 +332,6 @@ class BankTrialBalance:
 
         return sheet, columnlist[day]
 
-    def askuser(self, options):
-        title_local: str
-        date_local: str
-        value_local: float
-        dropdownlist = []
-        labels = []
-        dropdowns = []
-        i = 0
-        os.chdir('D:\\Python\\Organizator Wydatków')
-        root = Tk()
-        root.iconbitmap('ico\\kasa.ico')
-        root.title('Organizer Wydatków')
-        #root.geometry("800x400")
-        #root.resizable(height = None, width = None)
-        lab = Label(root, text = 'Manualny wybór kategorii')
-        lab.grid(row=0, column=0)
-        data = readcsvfile(CATEGORIES_FILE, encoding='ansi')
-        data_list = list(data)
-        for row in data_list:
-            if len(row) > 1:
-                dropdownlist.append(row[1])
-            elif len(row) == 1:
-                dropdownlist.append(row[0])
-        clicked = StringVar()
-        clicked.set(str(dropdownlist[0]))
-        print(clicked.get())
-        for logs in options:
-            i += 1
-            (date_local, title_local, value_local) = logs
-            labels.append(Label(root, text=f'Data: {date_local}, Tytuł: {title_local}, Wartość: {value_local}'))
-            labels[i-1].grid(sticky=W, row=i, column=0)
-            dropdowns.append(OptionMenu(root, clicked, *dropdownlist))
-            dropdowns[i-1].config(width=15)
-            dropdowns[i-1].grid(row=i, column=1)
-            logging.debug(f'Data: {date_local}, Tytuł: {title_local}, Wartość: {value_local}')
-        logging.debug(data_list)
-        root.mainloop()
-        return None
 
     def categorize(self):
         options = []
@@ -400,12 +373,12 @@ class BankTrialBalance:
                         self.data_list[index][valueindex] = self.data_list[index][valueindex].replace("PLN", "")
                         self.data_list[index][valueindex] = self.data_list[index][valueindex].replace(",", ".")
                         self.data_list[index][valueindex] = self.data_list[index][valueindex].replace(" ", "")
-                        value = abs(float(self.data_list[index][valueindex]))
+                        value = float(self.data_list[index][valueindex])
                         month = int(date.split('-')[1])
                         day = int(date.split('-')[2])
                         sheet, column = self.sheetandcellfromdate(month, day)
                         cell = column + str(category)
-                        checkandupdatecell(self.workbook, sheet, cell, value)
+                        checkandupdatecell(self.workbook, sheet, cell, abs(value))
                         if category == -1:
                             value = abs(float(self.data_list[index][valueindex]))
                             options.append((date, title, sheet, cell, value))
@@ -425,16 +398,16 @@ class BankTrialBalance:
                     if len(self.data_list[index][5]) > 0:
                         self.data_list[index][5] = self.data_list[index][5].replace("\"", "")
                         self.data_list[index][5] = self.data_list[index][5].replace(",", ".")
-                        value = abs(float(self.data_list[index][5]))
+                        value = float(self.data_list[index][5])
                     else:
                         self.data_list[index][6] = self.data_list[index][6].replace("\"", "")
                         self.data_list[index][6] = self.data_list[index][6].replace(",", ".")
-                        value = abs(float(self.data_list[index][6]))
+                        value = float(self.data_list[index][6])
                     month = int(date.split('-')[1])
                     day = int(date.split('-')[0])
                     sheet, column = self.sheetandcellfromdate(month, day)
                     cell = column + str(category)
-                    checkandupdatecell(self.workbook, sheet, cell, value)
+                    checkandupdatecell(self.workbook, sheet, cell, abs(value))
                     if category == -1:
                         options.append((date, title, sheet, cell, value))
                     else:
@@ -459,16 +432,16 @@ class BankTrialBalance:
                         title = desc
                     if len(self.data_list[index][7]) > 0:
                         self.data_list[index][7] = self.data_list[index][7].replace(",", ".")
-                        value = abs(float(self.data_list[index][7]))
+                        value = float(self.data_list[index][7])
                     else:
                         self.data_list[index][8] = self.data_list[index][8].replace(",", ".")
-                        value = abs(float(self.data_list[index][8]))
+                        value = float(self.data_list[index][8])
                     date = self.data_list[index][1]
                     month = int(date.split('-')[1])
                     day = int(date.split('-')[2])
                     sheet, column = self.sheetandcellfromdate(month, day)
                     cell = column + str(category)
-                    checkandupdatecell(self.workbook, sheet, cell, value)
+                    checkandupdatecell(self.workbook, sheet, cell, abs(value))
                     if category == -1:
                         options.append((date, title, sheet, cell, value))
                     else:
