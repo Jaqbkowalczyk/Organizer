@@ -5,6 +5,7 @@ import logging
 from tkinter import *  # from tkinter import Tk for Python 3.x
 from tkinter.filedialog import askopenfilename
 from typing import List, Any
+from shutil import copy2
 import datetime
 import openpyxl
 import codecs
@@ -240,8 +241,6 @@ def raport():
     category = ''
     categories_dict = {}
     os.chdir('D:\\Python\\Organizator Wydatków\\Raporty')
-    today = datetime.date.today()
-    date_part = today.strftime("%d_%m_%Y")
     text = '\t\tRaport z dnia ' + date_part +' dla banku: ' + bank + '\n' + '-'*60 + '\n'
     raport_filename = RAPORT_FILE + date_part + '.csv'
     for cat_row in data_list:
@@ -479,6 +478,14 @@ if __name__ == '__main__':
     root = Tk()
     root.iconbitmap('ico\\kasa.ico')
     os.chdir('C:\\Users\\jaqbk\\OneDrive\\Dokumenty\\Finanse')
+    today = datetime.date.today()
+    date_part = today.strftime("%d_%m_%Y")
+    backup_path = 'C:\\Users\\jaqbk\\OneDrive\\Dokumenty\\Finanse\\Backup\\' + date_part + '_' + BUDGET_EXCEL_FILE
+    if os.path.isfile(backup_path):
+        print('Backup already made today!')
+        pass
+    else:
+        copy2(BUDGET_EXCEL_FILE, backup_path)
     app = FullScreenApp(root)
     root.title('Organizer Wydatków')
     root.resizable(height=None, width=None)
