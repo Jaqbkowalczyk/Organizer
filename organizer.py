@@ -8,11 +8,12 @@ from typing import List, Any
 from shutil import copy2
 import datetime
 import openpyxl
+from openpyxl.styles import Font
 import codecs
 import csv
 import itertools as it
 
-BUDGET_EXCEL_FILE = 'test.xlsx'
+BUDGET_EXCEL_FILE = 'Budżet Domowy 2021.xlsx'
 KEYWORDS_FILE = 'D:\\Python\\Organizator Wydatków\\keywords.csv'
 CATEGORIES_FILE = 'D:\\Python\\Organizator Wydatków\\categories.csv'
 RAPORT_FILE = 'Raport_'
@@ -80,7 +81,6 @@ def makekeywordsfile(filename):
 def readcsvfile(filename, **kwargs):
     # function opens csv file in encoding dependant of bank, if bank is None it opens file with standard utf-8 encoding
     filename = filename
-    csv_data = None
     if 'bank' in kwargs:
         if kwargs['bank'] == 'mbank':
             with codecs.open(filename, 'r', 'ansi') as data:
@@ -132,14 +132,17 @@ def checkbank(filename):
     return bank
 
 
-def loopthroughcategories(title):
+def loopthroughcategories(title, positive=False):
     # function that checks each category and returns right one for the expense (which has the most keywords matching)
     category = -1
     category_list = []
     keywords = codecs.open(KEYWORDS_FILE, 'r', 'utf-8')
-    keywords_data = csv.reader(keywords, )
+    keywords_data = csv.reader(keywords)
     keywords_list = list(keywords_data)
     for row in keywords_list:
+        if positive:
+            if int(row[0]) > 65:
+                break
         for i in range(1, len(row)):
             if row[i].lower() in title:
                 category_list.append(row[0])
@@ -147,6 +150,7 @@ def loopthroughcategories(title):
                 continue
     cat_set = set(category_list)
     temp = 0
+
     for cat in cat_set:
         cat_number = category_list.count(cat)
         if cat_number > temp:
@@ -158,15 +162,15 @@ def loopthroughcategories(title):
     return category
 
 
-def checkandupdatecell(workbook, sheet, cell, value):
+def checkandupdatecell(workbook, sheetname, cell, value, bankname=None):
     if cell[1] == '-' or cell[2] == '-':
         logging.debug('No cell - cell not updated')
         return None
     else:
-        sheet = workbook.get_sheet_by_name(sheet)
+        sheet = workbook[sheetname]
         cellobj = sheet[cell]
         cellvalue = cellobj.value
-        logging.debug(f'Cell: {cell} value: {cellvalue}')
+        logging.debug(f'Sheet: {sheetname} Cell: {cell} Value: {cellvalue}')
         if cellvalue is not None:
             if str(cellvalue)[0] == '=':
                 values = cellvalue.split('+')
@@ -182,7 +186,18 @@ def checkandupdatecell(workbook, sheet, cell, value):
         else:
             cellvalue = value
         sheet[cell] = cellvalue
-    logging.debug(f'Cell: {cell} New value: {cellvalue}')
+        cellobj = sheet[cell]
+        if bankname == 'mbank':
+            cellobj.font = Font(color="00FF0000")
+        elif bankname == 'millennium':
+            cellobj.font = Font(color="00660066")
+        elif bankname == 'santander':
+            cellobj.font = Font(color="00008080")
+        else:
+            pass
+
+
+    logging.debug(f'Sheet: {sheetname} Cell: {cell} New value: {cellvalue}')
 
 
 def click_ok():
@@ -203,7 +218,7 @@ def click_ok():
                     else:
                         new_cell = click_cell[0] + row[0]
                     logging.debug(f'Tytuł: {click_title}, Numer Komórki: {new_cell}')
-                    checkandupdatecell(workbook, click_sheet, new_cell, abs(click_value))
+                    checkandupdatecell(workbook, click_sheet, new_cell, abs(click_value), bankname=bank)
                     raport_log.append((click_date, click_title, click_sheet, new_cell, click_value))
         i += 1
     if not chooseall:
@@ -219,6 +234,7 @@ def click_exit():
 def shutdown(event):
     event.destroy()
     raport()
+    workbook.save(BUDGET_EXCEL_FILE)
     sys.exit()
 
 
@@ -242,7 +258,10 @@ def raport():
     categories_dict = {}
     os.chdir('D:\\Python\\Organizator Wydatków\\Raporty')
     text = '\t\tRaport z dnia ' + date_part +' dla banku: ' + bank + '\n' + '-'*60 + '\n'
-    raport_filename = RAPORT_FILE + date_part + '.csv'
+    raport_filename = RAPORT_FILE + date_part + '_' + bank + '.csv'
+    raport_path = os.getcwd() + raport_filename
+    if os.path.isfile(raport_path):
+        raport_filename = RAPORT_FILE + date_part + '_' + bank + '2' + '.csv'
     for cat_row in data_list:
         if len(cat_row) > 1:
             categories_dict[cat_row[0]] = cat_row[1]
@@ -365,21 +384,24 @@ class BankTrialBalance:
                     if len(self.data_list[index]) > 0:
                         title = self.data_list[index][titleindex].lower()
                         date = self.data_list[index][dateindex]
-                        if self.data_list[index][titleindex-1].lower() == 'przelew na twoje cele':
-                            category = 212
-                        else:
-                            category = loopthroughcategories(title)
                         self.data_list[index][valueindex] = self.data_list[index][valueindex].replace("PLN", "")
                         self.data_list[index][valueindex] = self.data_list[index][valueindex].replace(",", ".")
                         self.data_list[index][valueindex] = self.data_list[index][valueindex].replace(" ", "")
                         value = float(self.data_list[index][valueindex])
+                        if self.data_list[index][titleindex-1].lower() == 'przelew na twoje cele':
+                            category = 212
+                        else:
+                            if value >= 0:
+                                category = loopthroughcategories(title, positive=True)
+                            else:
+                                category = loopthroughcategories(title)
                         month = int(date.split('-')[1])
                         day = int(date.split('-')[2])
                         sheet, column = self.sheetandcellfromdate(month, day)
                         cell = column + str(category)
-                        checkandupdatecell(self.workbook, sheet, cell, abs(value))
+                        checkandupdatecell(self.workbook, sheet, cell, abs(value), bankname=bank)
                         if category == -1:
-                            value = abs(float(self.data_list[index][valueindex]))
+                            value = float(self.data_list[index][valueindex])
                             options.append((date, title, sheet, cell, value))
                         else:
                             raport_log.append((date, title, sheet, cell, value))
@@ -393,20 +415,27 @@ class BankTrialBalance:
                 if len(self.data_list[index]) > 0 and index > 0:
                     title = self.data_list[index][2].lower()
                     date = self.data_list[index][1]
-                    category = loopthroughcategories(title)
                     if len(self.data_list[index][5]) > 0:
                         self.data_list[index][5] = self.data_list[index][5].replace("\"", "")
                         self.data_list[index][5] = self.data_list[index][5].replace(",", ".")
                         value = float(self.data_list[index][5])
+                        if value >= 0:
+                            category = loopthroughcategories(title, positive=True)
+                        else:
+                            category = loopthroughcategories(title)
                     else:
                         self.data_list[index][6] = self.data_list[index][6].replace("\"", "")
                         self.data_list[index][6] = self.data_list[index][6].replace(",", ".")
                         value = float(self.data_list[index][6])
+                        if value >= 0:
+                            category = loopthroughcategories(title, positive=True)
+                        else:
+                            category = loopthroughcategories(title)
                     month = int(date.split('-')[1])
                     day = int(date.split('-')[0])
                     sheet, column = self.sheetandcellfromdate(month, day)
                     cell = column + str(category)
-                    checkandupdatecell(self.workbook, sheet, cell, abs(value))
+                    checkandupdatecell(self.workbook, sheet, cell, abs(value), bankname=bank)
                     if category == -1:
                         options.append((date, title, sheet, cell, value))
                     else:
@@ -422,25 +451,44 @@ class BankTrialBalance:
                 if len(self.data_list[index]) > 0 and index > 0:
                     title = self.data_list[index][6].lower()
                     desc = self.data_list[index][5].lower()
-                    category = loopthroughcategories(title)
-                    category2 = loopthroughcategories(desc)
-                    if category != category2:
-                        if category == -1:
-                            category = category2
                     if title == '' or title == ',':
                         title = desc
                     if len(self.data_list[index][7]) > 0:
                         self.data_list[index][7] = self.data_list[index][7].replace(",", ".")
                         value = float(self.data_list[index][7])
+                        if value >= 0:
+                            category = loopthroughcategories(title, positive=True)
+                            category2 = loopthroughcategories(desc, positive=True)
+                            if category != category2:
+                                if category == -1:
+                                    category = category2
+                        else:
+                            category = loopthroughcategories(title, positive=False)
+                            category2 = loopthroughcategories(desc, positive=False)
+                            if category != category2:
+                                if category == -1:
+                                    category = category2
                     else:
                         self.data_list[index][8] = self.data_list[index][8].replace(",", ".")
                         value = float(self.data_list[index][8])
+                        if value >= 0:
+                            category = loopthroughcategories(title, positive=True)
+                            category2 = loopthroughcategories(desc, positive=True)
+                            if category != category2:
+                                if category == -1:
+                                    category = category2
+                        else:
+                            category = loopthroughcategories(title, positive=False)
+                            category2 = loopthroughcategories(desc, positive=False)
+                            if category != category2:
+                                if category == -1:
+                                    category = category2
                     date = self.data_list[index][1]
                     month = int(date.split('-')[1])
                     day = int(date.split('-')[2])
                     sheet, column = self.sheetandcellfromdate(month, day)
                     cell = column + str(category)
-                    checkandupdatecell(self.workbook, sheet, cell, abs(value))
+                    checkandupdatecell(self.workbook, sheet, cell, abs(value), bankname=bank)
                     if category == -1:
                         options.append((date, title, sheet, cell, value))
                     else:
@@ -466,6 +514,7 @@ class FullScreenApp(object):
         print(geom, self._geom)
         self.master.geometry(self._geom)
         self._geom = geom
+
 
 if __name__ == '__main__':
     dropdownlist = []
