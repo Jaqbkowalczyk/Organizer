@@ -6,26 +6,26 @@
 63
 64,MICHAŁ KOWALCZYK,refund,refund,refund,refund,refund,zwrot,zwrot,zwrot,zwrot
 65
-80,Jubilat,Kocyk,plus sklep,delice,polomarket,zabka,żabka,auchan,delikatesy centrum,sklep spozywczy,sklep spożywczy,pracownia pierogowa,biedronka,lidl,tesco,makro
-81,good,lood,jedrusia,paczkarnia,coffee,coffee,kawa,kawa,Pyszne.pl,pyszne.pl,pyszne.pl,lato paulina,curry,up!,camorra,streat slow food,p.h.u. monika monika,true waffles,waffles,tawerna strand,tawerna,mam gastro,kfc,lody,goodlood,lood is good,lodziarnia,jadlodajnia,lodziarnie,real greek,na ciacho,restauracja,resta,venture,cafe,subway,mcdonalds,mcdonald's,mistral,blonia bistro,bistro
+80,Jubilat,Kocyk,plus,delice,polomarket,zabka,żabka,auchan,delikatesy,centrum,spozywczy,sklep,spożywczy,pracownia pierogowa,biedronka,lidl,tesco,makro,piekarnia,buczek
+81,pizzatopia,food.bolt.eu,frytki,belgijskie,good,lood,jedrusia,paczkarnia,costa,coffee,coffee,kawa,kawa,Pyszne.pl,pyszne.pl,pyszne.pl,lato paulina,curry,up!,camorra,streat slow food,p.h.u. monika monika,true waffles,waffles,tawerna strand,tawerna,mam gastro,kfc,lody,goodlood,lood is good,lodziarnia,jadlodajnia,lodziarnie,real greek,na ciacho,restauracja,resta,venture,cafe,subway,mcdonalds,mcdonald's,mistral,blonia bistro,bistro
 82
 83
 84
-92
+92,zaliczka,miesięczna
 93
-94
+94,numer,płatnika,32088676
 95
 96
 97
 98
-99,pepco,ikea,homla,leroy,merlin,castorama,tiger,empik
+99,pepco,ikea,homla,leroy,merlin,castorama,tiger,empik,tedi
 100
 101
 104,auchan,orlen,bp,arge,shell,oktan,stacja paliw,moya,circle
 105,auto elektro,serwis samochodowy,serwis,auto,naprawa samochodów
 106
 107
-108
+108,mpk
 109
 110
 111,mobiparking,skycash
@@ -34,19 +34,19 @@
 117,spotify,netflix
 118
 119,orange,internet
-120
+120,inpost
 128,diagnostyka,przychodnia,zdrowia,zdrowie,szpital
 129
 130,apteka,apteka
 131,vision,express,optyk,okulary
 132
-140,vinted,sklep odzieżowy,sklep odziezowy,h&m,reserved,sukienka,fh tik,otcf wo5
-141
+140,vinted,sklep odzieżowy,sklep odziezowy,h&m,reserved,sukienka,fh tik,otcf wo5,wirex
+141,decathlon
 142,ccc
 143
 144
 145,kulka,tygrysek
-152,rossmann
+152,rossmann,drogeria,pigment
 153
 154
 155
@@ -67,7 +67,7 @@
 180
 181,bike,bike,bike,rower,rower,rowerowy,rowerowy,mosorny,gron
 182
-183,muzeum historyczne,muzeum
+183,muzeum historyczne,muzeum,narty,narciarska,narciarskie
 184
 188,darowizna
 189

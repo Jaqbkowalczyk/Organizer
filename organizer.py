@@ -9,15 +9,17 @@ from shutil import copy2
 import datetime
 import openpyxl
 from openpyxl.styles import Font
+from openpyxl.comments import Comment
 import codecs
 import csv
 import itertools as it
 
 BUDGET_EXCEL_FILE = 'Budżet Domowy 2021.xlsx'
+#BUDGET_EXCEL_FILE = 'test.xlsx'
 KEYWORDS_FILE = 'D:\\Python\\Organizator Wydatków\\keywords.csv'
 CATEGORIES_FILE = 'D:\\Python\\Organizator Wydatków\\categories.csv'
 RAPORT_FILE = 'Raport_'
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
 os.chdir('C:\\Users\\jaqbk\\OneDrive\\Dokumenty\\Finanse')
 
 
@@ -162,7 +164,7 @@ def loopthroughcategories(title, positive=False):
     return category
 
 
-def checkandupdatecell(workbook, sheetname, cell, value, bankname=None):
+def checkandupdatecell(workbook, sheetname, cell, value, title, bankname=None):
     if cell[1] == '-' or cell[2] == '-':
         logging.debug('No cell - cell not updated')
         return None
@@ -195,7 +197,17 @@ def checkandupdatecell(workbook, sheetname, cell, value, bankname=None):
             cellobj.font = Font(color="00008080")
         else:
             pass
-
+        comment = Comment(title, bankname)
+        if cellobj.comment:
+            if cellobj.comment == comment:
+                pass
+            else:
+                comment = Comment(cellobj.comment.text + '\n' + comment.text, bankname)
+                comment.width = 200
+                comment.height = 300
+                cellobj.comment = comment
+        else:
+            cellobj.comment = comment
 
     logging.debug(f'Sheet: {sheetname} Cell: {cell} New value: {cellvalue}')
 
@@ -218,7 +230,7 @@ def click_ok():
                     else:
                         new_cell = click_cell[0] + row[0]
                     logging.debug(f'Tytuł: {click_title}, Numer Komórki: {new_cell}')
-                    checkandupdatecell(workbook, click_sheet, new_cell, abs(click_value), bankname=bank)
+                    checkandupdatecell(workbook, click_sheet, new_cell, abs(click_value), click_title, bankname=bank)
                     raport_log.append((click_date, click_title, click_sheet, new_cell, click_value))
         i += 1
     if not chooseall:
@@ -399,7 +411,7 @@ class BankTrialBalance:
                         day = int(date.split('-')[2])
                         sheet, column = self.sheetandcellfromdate(month, day)
                         cell = column + str(category)
-                        checkandupdatecell(self.workbook, sheet, cell, abs(value), bankname=bank)
+                        checkandupdatecell(self.workbook, sheet, cell, abs(value), title, bankname=bank)
                         if category == -1:
                             value = float(self.data_list[index][valueindex])
                             options.append((date, title, sheet, cell, value))
@@ -435,7 +447,7 @@ class BankTrialBalance:
                     day = int(date.split('-')[0])
                     sheet, column = self.sheetandcellfromdate(month, day)
                     cell = column + str(category)
-                    checkandupdatecell(self.workbook, sheet, cell, abs(value), bankname=bank)
+                    checkandupdatecell(self.workbook, sheet, cell, abs(value), title, bankname=bank)
                     if category == -1:
                         options.append((date, title, sheet, cell, value))
                     else:
@@ -462,12 +474,14 @@ class BankTrialBalance:
                             if category != category2:
                                 if category == -1:
                                     category = category2
+                                    title = desc
                         else:
                             category = loopthroughcategories(title, positive=False)
                             category2 = loopthroughcategories(desc, positive=False)
                             if category != category2:
                                 if category == -1:
                                     category = category2
+                                    title = desc
                     else:
                         self.data_list[index][8] = self.data_list[index][8].replace(",", ".")
                         value = float(self.data_list[index][8])
@@ -477,18 +491,20 @@ class BankTrialBalance:
                             if category != category2:
                                 if category == -1:
                                     category = category2
+                                    title = desc
                         else:
                             category = loopthroughcategories(title, positive=False)
                             category2 = loopthroughcategories(desc, positive=False)
                             if category != category2:
                                 if category == -1:
                                     category = category2
+                                    title = desc
                     date = self.data_list[index][1]
                     month = int(date.split('-')[1])
                     day = int(date.split('-')[2])
                     sheet, column = self.sheetandcellfromdate(month, day)
                     cell = column + str(category)
-                    checkandupdatecell(self.workbook, sheet, cell, abs(value), bankname=bank)
+                    checkandupdatecell(self.workbook, sheet, cell, abs(value), title, bankname=bank)
                     if category == -1:
                         options.append((date, title, sheet, cell, value))
                     else:
